@@ -1,0 +1,7 @@
+# Kave: egress only. Holds nothing, runs nothing but Tailscale.
+# After the first run, approve the exit node in the Tailscale admin console.
+tailscale_flags: "--advertise-exit-node"
+
+# No logins or tokens live here.
+claude_code_enabled: false
+ai_tools_enabled: false

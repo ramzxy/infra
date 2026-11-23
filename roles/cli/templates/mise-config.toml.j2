@@ -1,0 +1,15 @@
+# Managed by Ansible (roles/cli). Edit cli_tools / ai_tools in group_vars/all.yml instead.
+# Try something without keeping it:  mise exec <tool> -- <command>
+# Keep something just for yourself:   put it in ~/.config/mise/conf.d/local.toml
+
+[tools]
+{% for name, version in cli_tools.items() %}
+"{{ name }}" = "{{ version }}"
+{% endfor %}
+{% if ai_tools_enabled | bool %}
+
+# AI coding CLIs
+{% for name, version in ai_tools.items() %}
+"{{ name }}" = "{{ version }}"
+{% endfor %}
+{% endif %}

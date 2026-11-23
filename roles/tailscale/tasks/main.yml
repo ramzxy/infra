@@ -1,0 +1,47 @@
+---
+- name: Install Tailscale (official script, adds their apt repo)
+  ansible.builtin.shell: set -o pipefail && curl -fsSL https://tailscale.com/install.sh | sh  # noqa: command-instead-of-module
+  args:
+    executable: /bin/bash
+    creates: /usr/bin/tailscale
+
+- name: Tailscale daemon running
+  ansible.builtin.service:
+    name: tailscaled
+    state: started
+    enabled: true
+
+# Read-only, so it also runs during `make check` (otherwise the dry run guesses wrong).
+- name: Current Tailscale state
+  ansible.builtin.command: tailscale status --json
+  register: tailscale_status
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Work out whether we're logged in
+  ansible.builtin.set_fact:
+    tailscale_running: "{{ tailscale_status.rc == 0 and (tailscale_status.stdout | from_json).BackendState == 'Running' }}"
+
+- name: Log in with auth key
+  ansible.builtin.command: >-
+    tailscale up --authkey={{ tailscale_authkey }} --hostname={{ inventory_hostname }} {{ tailscale_flags }}
+  when: not tailscale_running | bool and tailscale_authkey | length > 0
+  register: tailscale_login
+  no_log: true
+  changed_when: true
+
+- name: Apply per-host flags to a running node (e.g. exit node on Kave)
+  ansible.builtin.command: "tailscale set {{ tailscale_flags }}"
+  when: tailscale_running | bool and tailscale_flags | length > 0
+  changed_when: false
+
+- name: Let Tailscale update itself
+  ansible.builtin.command: "tailscale set --auto-update={{ tailscale_auto_update | bool | lower }}"
+  when: tailscale_running | bool or tailscale_login is changed
+  changed_when: false
+
+- name: No auth key given
+  ansible.builtin.debug:
+    msg: "Tailscale is installed but not logged in. Run: sudo tailscale up --hostname={{ inventory_hostname }} {{ tailscale_flags }}"
+  when: not tailscale_running | bool and tailscale_authkey | length == 0

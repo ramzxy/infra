@@ -1,0 +1,151 @@
+# Managed by Ansible (roles/shell/templates/zshrc.j2). Personal tweaks go in ~/.zshrc.local.
+# Mirrors the Windows PowerShell setup: same prompt, colours, fzf, zoxide and keys.
+
+typeset -U path
+path=("$HOME/.local/bin" $path)
+export EDITOR=nvim VISUAL=nvim
+command -v nvim >/dev/null || export EDITOR=vim VISUAL=vim
+
+# ── History: big, shared between tmux panes, timestamped (`history -i`) ──
+HISTFILE=~/.zsh_history
+HISTSIZE=200000
+SAVEHIST=200000
+setopt EXTENDED_HISTORY INC_APPEND_HISTORY SHARE_HISTORY HIST_IGNORE_ALL_DUPS HIST_IGNORE_SPACE HIST_REDUCE_BLANKS
+setopt AUTO_CD AUTO_PUSHD PUSHD_IGNORE_DUPS INTERACTIVE_COMMENTS NO_BEEP
+
+# ── Completion: Tab opens a menu you arrow through (like MenuComplete) ──
+# Runs before mise so mise doesn't start a second compinit of its own.
+# The full check (security audit, new completions) runs once a day; other shells load the cached dump.
+zmodload zsh/complist
+autoload -Uz compinit
+_zcomp_stale=(~/.cache/zcompdump(N.mh+24))
+if [[ -f ~/.cache/zcompdump && $#_zcomp_stale -eq 0 ]]; then
+  compinit -C -d ~/.cache/zcompdump
+else
+  compinit -d ~/.cache/zcompdump && touch ~/.cache/zcompdump
+fi
+unset _zcomp_stale
+zstyle ':completion:*' menu select
+zstyle ':completion:*' matcher-list 'm:{a-z}={A-Za-z}'
+zstyle ':completion:*' group-name ''
+zstyle ':completion:*:descriptions' format '%F{244}-- %d --%f'
+
+# ── Tools from mise (eza, bat, fzf, zoxide, lazygit, node, ...) ──
+command -v mise >/dev/null && eval "$(mise activate zsh)"
+
+# ── Keys: emacs mode; Up/Down search history for what you've typed so far ──
+bindkey -e
+autoload -U up-line-or-beginning-search down-line-or-beginning-search
+zle -N up-line-or-beginning-search
+zle -N down-line-or-beginning-search
+bindkey '^[[A' up-line-or-beginning-search;   bindkey '^[OA' up-line-or-beginning-search
+bindkey '^[[B' down-line-or-beginning-search; bindkey '^[OB' down-line-or-beginning-search
+bindkey '^[[1;5C' forward-word;  bindkey '^[[1;5D' backward-word   # Ctrl+Right / Ctrl+Left
+bindkey '^[[H' beginning-of-line; bindkey '^[[F' end-of-line; bindkey '^[[3~' delete-char
+bindkey '^H' backward-kill-word                                     # Ctrl+Backspace
+
+# ── fzf (same colours as Windows): Ctrl+T files, Ctrl+R history, Alt+C cd ──
+export FZF_DEFAULT_OPTS='--height=45% --layout=reverse --border=rounded --info=inline --color=bg:#191B20,fg:#D5D8E0,hl:#8CAAEE,bg+:#303543,fg+:#F0F2F7,hl+:#AEC2F5,pointer:#A6CDA0,prompt:#8CAAEE'
+if command -v fd >/dev/null; then
+  export FZF_DEFAULT_COMMAND='fd --type f --hidden --exclude .git'
+  export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
+  export FZF_ALT_C_COMMAND='fd --type d --hidden --exclude .git'
+fi
+command -v fzf >/dev/null && source <(fzf --zsh)
+# zoxide takes over cd: real paths work as always, anything else jumps to the best match you've visited
+if command -v zoxide >/dev/null; then
+  eval "$(zoxide init zsh --cmd cd)"
+  alias z='cd' zi='cdi'                                       # cdi / zi: pick from a list
+fi
+
+# ── Modern tools in place of the classics ──
+# Straight swaps where the flags you'd type still work. For df, du, dig and diff the new tool
+# answers the plain call and the classic one takes over as soon as you pass flags it doesn't know.
+# grep, find, sed and curl stay classic (rg, fd, sd and xh use different flags, so pasted commands
+# would break); type the new names when you want them. Get the original any time: \cat, command df
+if command -v eza >/dev/null; then
+  alias ls='eza -F --group-directories-first --icons=auto'
+  alias ll='eza -lahF --git --group-directories-first --icons=auto'
+  alias lt='eza --tree --level=2 --group-directories-first --icons=auto'
+  alias tree='eza --tree --group-directories-first --icons=auto'
+else
+  alias ls='ls -F --color=auto' ll='ls -lahF --color=auto'
+fi
+command -v bat  >/dev/null && alias cat='bat --paging=never --style=plain'
+command -v nvim >/dev/null && alias vim='nvim' vi='nvim'
+command -v btop >/dev/null && alias top='btop' htop='btop'
+if command -v duf >/dev/null; then
+  df() { if [[ $# -eq 0 || "$*" == "-h" ]]; then duf; else command df "$@"; fi }
+fi
+if command -v dust >/dev/null; then
+  du() { if [[ $# -eq 0 ]]; then dust; else command du "$@"; fi }
+fi
+if command -v doggo >/dev/null; then
+  dig() { local a; for a; do [[ $a == [-+]* ]] && { command dig "$@"; return; }; done; doggo "$@"; }
+fi
+if command -v delta >/dev/null; then
+  diff() { if [[ $# -eq 2 && $1 != -* && $2 != -* ]]; then delta "$1" "$2"; else command diff "$@"; fi }
+fi
+
+# ── Small helpers ──
+alias ..='cd ..'
+alias ...='cd ../..'
+mkcd() { mkdir -p -- "$1" && builtin cd -- "$1"; }
+alias ip='ip -c'
+alias lg='lazygit'
+alias lzd='lazydocker'
+command -v bat >/dev/null && export MANPAGER="sh -c 'col -bx | bat -l man -p'" MANROFFOPT='-c'
+{% if pentest_enabled | bool %}
+
+# ── Pentest helpers ──
+EGRESS_IP="{{ egress_ip }}"
+
+# Run before any scan: refuses unless IPv4 traffic leaves through Kave and IPv6 can't bypass it.
+egress-check() {
+  if [[ -z "$EGRESS_IP" ]]; then echo "egress-check: EGRESS_IP not set (group_vars/all.yml -> egress_ip)"; return 1; fi
+  local v4 v6
+  v4=$(curl -4 -s --max-time 5 https://ifconfig.me)
+  v6=$(curl -6 -s --max-time 5 https://ifconfig.me)
+  if [[ "$v4" != "$EGRESS_IP" ]]; then echo "STOP: IPv4 leaves via ${v4:-unknown}, expected $EGRESS_IP"; return 1; fi
+  if [[ -n "$v6" ]]; then echo "STOP: IPv6 works and leaves via $v6. Check it's Kave's, or disable IPv6 for the scan."; return 1; fi
+  echo "ok: leaving via $v4 (kave), no IPv6 path"
+}
+
+# eng <client-yyyymmdd>: create and jump into an engagement folder
+eng() {
+  [[ -z "$1" ]] && { ls /srv/engagements 2>/dev/null; return; }
+  mkdir -p "/srv/engagements/$1"/{scans,loot,notes,evidence} && cd "/srv/engagements/$1"
+}
+{% endif %}
+
+[ -f ~/.zshrc.local ] && source ~/.zshrc.local
+
+# ── Prompt: same oh-my-posh theme as Windows ──
+command -v oh-my-posh >/dev/null && eval "$(oh-my-posh init zsh --config ~/.config/oh-my-posh/theme.omp.json)"
+
+# ── Inline suggestions from history + syntax colours (same palette as PSReadLine) ──
+ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='fg=#737B91'
+ZSH_AUTOSUGGEST_STRATEGY=(history completion)
+ZSH_AUTOSUGGEST_MANUAL_REBIND=1   # bind widgets once, not before every prompt (~30 ms each time)
+[ -f /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh ] && source /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+# Must be sourced last
+if [ -f /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]; then
+  source /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+  ZSH_HIGHLIGHT_STYLES[command]='fg=#8CAAEE'
+  ZSH_HIGHLIGHT_STYLES[builtin]='fg=#8CAAEE'
+  ZSH_HIGHLIGHT_STYLES[alias]='fg=#8CAAEE'
+  ZSH_HIGHLIGHT_STYLES[function]='fg=#8CAAEE'
+  ZSH_HIGHLIGHT_STYLES[precommand]='fg=#8CAAEE,italic'
+  ZSH_HIGHLIGHT_STYLES[reserved-word]='fg=#C6A0E8'
+  ZSH_HIGHLIGHT_STYLES[single-hyphen-option]='fg=#D5D8E0'
+  ZSH_HIGHLIGHT_STYLES[double-hyphen-option]='fg=#D5D8E0'
+  ZSH_HIGHLIGHT_STYLES[single-quoted-argument]='fg=#A6CDA0'
+  ZSH_HIGHLIGHT_STYLES[double-quoted-argument]='fg=#A6CDA0'
+  ZSH_HIGHLIGHT_STYLES[dollar-quoted-argument]='fg=#A6CDA0'
+  ZSH_HIGHLIGHT_STYLES[commandseparator]='fg=#81C8BE'
+  ZSH_HIGHLIGHT_STYLES[redirection]='fg=#81C8BE'
+  ZSH_HIGHLIGHT_STYLES[dollar-double-quoted-argument]='fg=#C6A0E8'
+  ZSH_HIGHLIGHT_STYLES[assign]='fg=#C6A0E8'
+  ZSH_HIGHLIGHT_STYLES[comment]='fg=#737B91'
+  ZSH_HIGHLIGHT_STYLES[unknown-token]='fg=#E78284'
+fi

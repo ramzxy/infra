@@ -1,0 +1,39 @@
+# Full run:      ansible-playbook site.yml
+# One host:      ansible-playbook site.yml --limit hub
+# On the box:    sudo bash bootstrap.sh hub
+---
+- name: Every server
+  hosts: servers
+  become: true
+  roles:
+    - base       # packages, updates, hostname, timezone
+    - users      # your user, sudo, SSH keys
+    - firewall   # ufw: nothing in except Tailscale (+ SSH while ssh_public)
+    - tailscale
+    - cli        # mise + the modern CLI toolset from group_vars
+    - shell      # zsh, prompt, tmux, git config
+
+- name: Hub
+  hosts: hub
+  become: true
+  roles:
+    - docker
+    - hub
+  tasks:
+    - name: Pentest toolkit (only when pentest_enabled is true)
+      ansible.builtin.include_role:
+        name: pentest
+      when: pentest_enabled | bool
+
+- name: Kave egress
+  hosts: kave
+  become: true
+  roles:
+    - egress
+
+# Last on purpose: root login and passwords switch off only after everything else is in place.
+- name: Harden SSH
+  hosts: servers
+  become: true
+  roles:
+    - ssh

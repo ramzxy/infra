@@ -1,0 +1,24 @@
+---
+# Kave forwards your tailnet traffic to the internet as an exit node.
+- name: Enable IP forwarding
+  ansible.posix.sysctl:
+    name: "{{ item }}"
+    value: "1"
+    sysctl_file: /etc/sysctl.d/99-tailscale-exit.conf
+    reload: true
+  loop:
+    - net.ipv4.ip_forward
+    - net.ipv6.conf.all.forwarding
+
+- name: Let ufw route tailnet traffic out to the internet
+  community.general.ufw:
+    rule: allow
+    route: true
+    interface_in: tailscale0
+    interface_out: "{{ ansible_default_ipv4.interface }}"
+
+- name: Reminder
+  ansible.builtin.debug:
+    msg: >-
+      Approve Kave as an exit node in the Tailscale admin console (Machines -> kave -> Edit route settings).
+      Then on Kali/laptop: tailscale set --exit-node=kave  and run egress-check.

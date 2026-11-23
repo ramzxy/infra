@@ -1,0 +1,37 @@
+# Managed by Ansible (roles/shell/templates/tmux.conf.j2)
+# Same plugins as the Windows setup: tpm, tmux-sensible, opensessions (sidebar: prefix o -> s).
+set -g mouse on
+set -g history-limit 100000
+set -g base-index 1
+setw -g pane-base-index 1
+set -g renumber-windows on
+set -g default-terminal "tmux-256color"
+set -as terminal-features ",*:RGB"
+set -sg escape-time 10
+set -g focus-events on
+set -g status-style "bg=default,fg=#D5D8E0"
+set -g status-left "#[fg=#8CAAEE,bold]#H #[fg=#737B91,nobold]| "
+set -g status-left-length 30
+set -g status-right "#[fg=#737B91]%Y-%m-%d %H:%M"
+
+# Split and open windows in the current directory
+bind | split-window -h -c "#{pane_current_path}"
+bind - split-window -v -c "#{pane_current_path}"
+bind c new-window -c "#{pane_current_path}"
+bind r source-file ~/.tmux.conf \; display-message "tmux.conf reloaded"
+
+# Save the whole pane to a timestamped file in ~ (prefix + P). Handy for evidence and logs.
+bind P run-shell 'tmux capture-pane -pJ -S - -t "#{pane_id}" > ~/tmux-#{session_name}-$(date +%Y%m%d-%H%M%S).log && tmux display-message "pane saved to ~"'
+
+# Plugins
+{% for p in tmux_plugins %}
+set -g @plugin '{{ p.repo | regex_replace('^https://github.com/', '') }}'
+{% endfor %}
+{% if tmux_plugins | selectattr('name', 'equalto', 'opensessions') | list %}
+
+# Load opensessions directly too (same as Windows, in case TPM doesn't auto-run it)
+if-shell "test -f ~/.tmux/plugins/opensessions/opensessions.tmux" "run-shell '~/.tmux/plugins/opensessions/opensessions.tmux'"
+{% endif %}
+
+# Keep this line at the very bottom
+run-shell '~/.tmux/plugins/tpm/tpm'

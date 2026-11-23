@@ -1,0 +1,6 @@
+# Hub: the always-on main box. Shell, tools, Docker stacks, AI CLIs.
+tailscale_flags: ""
+
+# Flip to true if you want the pentest toolkit on the hub too.
+# Scans from here leave via the hub's own IP unless you route them through Kave.
+pentest_enabled: false

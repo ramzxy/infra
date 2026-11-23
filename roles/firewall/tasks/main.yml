@@ -1,0 +1,32 @@
+---
+# Order matters: allow rules first, enable last, so you can't cut your own SSH session.
+- name: Allow everything arriving over Tailscale
+  community.general.ufw:
+    rule: allow
+    interface: tailscale0
+    direction: in
+
+- name: Allow Tailscale's direct-connection port
+  community.general.ufw:
+    rule: allow
+    port: "41641"
+    proto: udp
+
+- name: Public SSH (only while ssh_public is true)
+  community.general.ufw:
+    rule: allow
+    port: "22"
+    proto: tcp
+    delete: "{{ not ssh_public }}"
+
+- name: Default policies
+  community.general.ufw:
+    direction: "{{ item.direction }}"
+    default: "{{ item.policy }}"
+  loop:
+    - { direction: incoming, policy: deny }
+    - { direction: outgoing, policy: allow }
+
+- name: Enable firewall
+  community.general.ufw:
+    state: enabled

@@ -1,0 +1,83 @@
+---
+- name: Refuse to run without a real SSH key (lockout protection)
+  ansible.builtin.assert:
+    that:
+      - admin_ssh_keys | length > 0
+      - admin_ssh_keys | select('search', 'REPLACE_ME') | list | length == 0
+    fail_msg: >-
+      Put your public SSH key in group_vars/all.yml (admin_ssh_keys) first.
+      This run disables password and root login, so without a key you'd be locked out.
+
+- name: Set hostname
+  ansible.builtin.hostname:
+    name: "{{ inventory_hostname }}"
+
+# Without this, sudo prints "unable to resolve host" after the rename.
+- name: Hostname resolves locally
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    regexp: '^127\.0\.1\.1\s+{{ inventory_hostname }}\s*$'
+    line: "127.0.1.1 {{ inventory_hostname }}"
+
+- name: Is cloud-init present?
+  ansible.builtin.stat:
+    path: /etc/cloud/cloud.cfg.d
+  register: base_cloud_init
+
+# Contabo and most VPS images run cloud-init, which can reset the hostname on reboot.
+- name: Stop cloud-init from resetting the hostname
+  ansible.builtin.copy:
+    dest: /etc/cloud/cloud.cfg.d/99-keep-hostname.cfg
+    content: |
+      # Managed by Ansible (roles/base)
+      preserve_hostname: true
+    mode: "0644"
+  when: base_cloud_init.stat.exists
+
+- name: Does cloud-init have a hosts template?
+  ansible.builtin.stat:
+    path: /etc/cloud/templates/hosts.debian.tmpl
+  register: base_hosts_template
+
+# Contabo's user-data sets manage_etc_hosts, which outranks local config, so cloud-init
+# rewrites /etc/hosts from this template on every boot. Put the line in the template too.
+- name: Keep the hostname line across reboots
+  ansible.builtin.lineinfile:
+    path: /etc/cloud/templates/hosts.debian.tmpl
+    regexp: '^127\.0\.1\.1\s+{{ inventory_hostname }}\s*$'
+    line: "127.0.1.1 {{ inventory_hostname }}"
+    insertafter: '^127\.0\.0\.1\s+localhost'
+  when: base_hosts_template.stat.exists
+
+- name: Upgrade installed packages
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+    upgrade: safe
+
+- name: Install base packages
+  ansible.builtin.apt:
+    name: "{{ base_packages }}"
+    state: present
+
+- name: Set timezone
+  community.general.timezone:
+    name: "{{ timezone }}"
+
+- name: Enable automatic security updates
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+    mode: "0644"
+
+- name: Does the box want a reboot (new kernel etc.)?
+  ansible.builtin.stat:
+    path: /var/run/reboot-required
+  register: base_reboot_required
+
+- name: Reboot reminder
+  ansible.builtin.debug:
+    msg: "A reboot is pending (usually a kernel update). Run `sudo reboot` when convenient."
+  when: base_reboot_required.stat.exists

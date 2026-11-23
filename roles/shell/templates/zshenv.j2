@@ -1,0 +1,5 @@
+# Managed by Ansible (roles/shell). Read by every zsh, including `ssh hub some-command`
+# and tmux plugin scripts, so tools work there too.
+export LANG="${LANG:-C.UTF-8}"
+typeset -U path
+path=("$HOME/.local/bin" "$HOME/.local/share/mise/shims" $path)

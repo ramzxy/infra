@@ -1,0 +1,72 @@
+---
+# mise installs and updates the CLI toolset per user, from one config file.
+# It comes from its own signed apt repo, so `apt upgrade` keeps mise itself current.
+- name: Mise apt repo (signing key fetched and pinned by the module)
+  ansible.builtin.deb822_repository:
+    name: mise
+    types: deb
+    uris: https://mise.jdx.dev/deb
+    suites: stable
+    components: main
+    signed_by: https://mise.jdx.dev/gpg-key.pub
+
+# Leftovers from the first version of this role, which used the older one-line format.
+- name: Remove old-style mise repo files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/apt/sources.list.d/mise.list
+    - /etc/apt/keyrings/mise-archive-keyring.asc
+
+- name: Install mise
+  ansible.builtin.apt:
+    name: mise
+    state: present
+    update_cache: true
+
+- name: Mise config folders
+  ansible.builtin.file:
+    path: "/home/{{ admin_user }}/{{ item }}"
+    state: directory
+    owner: "{{ admin_user }}"
+    group: "{{ admin_user }}"
+    mode: "0755"
+  loop:
+    - .config
+    - .config/mise
+    - .config/mise/conf.d
+
+- name: Toolset (~/.config/mise/config.toml)
+  ansible.builtin.template:
+    src: mise-config.toml.j2
+    dest: "/home/{{ admin_user }}/.config/mise/config.toml"
+    owner: "{{ admin_user }}"
+    group: "{{ admin_user }}"
+    mode: "0644"
+
+- name: Install missing tools (first run takes a few minutes)
+  ansible.builtin.command: mise install --yes
+  args:
+    chdir: "/home/{{ admin_user }}"
+  environment:
+    HOME: "/home/{{ admin_user }}"
+    MISE_YES: "1"
+    GITHUB_TOKEN: "{{ mise_github_token }}"
+  become: true
+  become_user: "{{ admin_user }}"
+  register: cli_mise_install
+  changed_when: "'all tools are installed' not in (cli_mise_install.stderr + cli_mise_install.stdout)"
+
+- name: Claude Code for the admin user (native installer, auto-updates)
+  ansible.builtin.shell: >-  # noqa: command-instead-of-module
+    set -o pipefail &&
+    curl -fsSL https://claude.ai/install.sh | bash
+  args:
+    executable: /bin/bash
+    creates: "/home/{{ admin_user }}/.local/bin/claude"
+  environment:
+    HOME: "/home/{{ admin_user }}"
+  become: true
+  become_user: "{{ admin_user }}"
+  when: claude_code_enabled | bool

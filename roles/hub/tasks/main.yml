@@ -1,0 +1,10 @@
+---
+# Each self-hosted service gets a folder here with its compose.yml,
+# published to your tailnet with `tailscale serve`, never to the internet.
+- name: Folder for Docker compose stacks
+  ansible.builtin.file:
+    path: /srv/stacks
+    state: directory
+    owner: "{{ admin_user }}"
+    group: "{{ admin_user }}"
+    mode: "0755"

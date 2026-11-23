@@ -1,0 +1,60 @@
+---
+- name: Config folders
+  ansible.builtin.file:
+    path: "/home/{{ admin_user }}/{{ item }}"
+    state: directory
+    owner: "{{ admin_user }}"
+    group: "{{ admin_user }}"
+    mode: "0755"
+  loop:
+    - .config
+    - .config/oh-my-posh
+    - .config/git
+    - .cache
+    - .tmux
+    - .tmux/plugins
+
+- name: Dotfiles for the admin user
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "/home/{{ admin_user }}/{{ item.dest }}"
+    owner: "{{ admin_user }}"
+    group: "{{ admin_user }}"
+    mode: "0644"
+  loop:
+    - { src: zshenv.j2, dest: .zshenv }
+    - { src: zshrc.j2, dest: .zshrc }
+    - { src: tmux.conf.j2, dest: .tmux.conf }
+    - { src: gitconfig.j2, dest: .config/git/config }
+
+# Same theme as the Windows PowerShell prompt, plus user@host when you're in over SSH.
+- name: Prompt theme
+  ansible.builtin.copy:
+    src: theme.omp.json
+    dest: "/home/{{ admin_user }}/.config/oh-my-posh/theme.omp.json"
+    owner: "{{ admin_user }}"
+    group: "{{ admin_user }}"
+    mode: "0644"
+
+# TPM updates them afterwards (prefix + U), so Ansible only does the first clone.
+- name: Tmux plugins
+  ansible.builtin.git:
+    repo: "{{ item.repo }}"
+    dest: "/home/{{ admin_user }}/.tmux/plugins/{{ item.name }}"
+    depth: 1
+    update: false  # noqa: latest[git]
+  become: true
+  become_user: "{{ admin_user }}"
+  loop: "{{ tmux_plugins }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Keep a place for personal, unmanaged shell tweaks
+  ansible.builtin.file:
+    path: "/home/{{ admin_user }}/.zshrc.local"
+    state: touch
+    owner: "{{ admin_user }}"
+    group: "{{ admin_user }}"
+    mode: "0644"
+    modification_time: preserve
+    access_time: preserve

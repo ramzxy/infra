@@ -1,0 +1,163 @@
+# ─────────────────────────────────────────────────────────────────────
+#  The one file you edit most. Everything else reads from here.
+#  Per-host overrides go in host_vars/<host>.yml.
+# ─────────────────────────────────────────────────────────────────────
+
+# ── You ──────────────────────────────────────────────────────────────
+admin_user: ilia
+admin_sudo_nopasswd: true          # fine while SSH is key-only + Tailscale-only
+
+# Public keys allowed to log in as admin_user. Exactly these, nothing else.
+# Add one line per machine (Windows PC, laptop, Kali VM).
+# The run refuses to start while this list is empty or says REPLACE_ME (lockout protection).
+admin_ssh_keys:
+  - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJI01kwHHUBoiFpT2pv2SJ8LQ3wySg39W0XaFNYTjNzN ilia@windows"
+  - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEN27dr/BoGx9YY7RWKTF8Se0kWMlOowQPKFBWNMDhtl ilia@mac"
+
+timezone: Europe/Amsterdam
+
+# ── Access ───────────────────────────────────────────────────────────
+# true  = SSH (22/tcp) open to the internet, keys only
+# false = SSH only over Tailscale. Flip this once `ssh ilia@hub` works over the tailnet.
+ssh_public: true
+
+# ── Tailscale ────────────────────────────────────────────────────────
+# Pass a key at run time: TS_AUTHKEY=tskey-... bash bootstrap.sh hub
+# Leave empty to log in by hand afterwards with: sudo tailscale up
+tailscale_authkey: "{{ lookup('env', 'TS_AUTHKEY') }}"
+tailscale_flags: ""                # per-host extras live in host_vars/
+tailscale_auto_update: true
+
+# ── Packages from apt (system basics, available to root too) ─────────
+base_packages:
+  - sudo               # minimal images sometimes lack it
+  - ca-certificates
+  - acl                # lets Ansible run tasks as your user cleanly
+  - python3-apt        # lets `make check` dry runs use the apt module
+  - python3-debian     # needed by Ansible's deb822_repository module
+  - gnupg
+  - curl
+  - wget
+  - git
+  - unzip
+  - zip
+  - rsync
+  - jq
+  - htop
+  - ncdu
+  - tree
+  - lsof
+  - vim
+  - tmux
+  - zsh
+  - zsh-autosuggestions
+  - zsh-syntax-highlighting
+  - bash-completion
+  - dnsutils
+  - whois
+  - mtr-tiny
+  - netcat-openbsd
+  - socat
+  - ufw
+  - unattended-upgrades
+  - python3-venv
+  - pipx
+  - build-essential
+  - restic             # backups (role still to come)
+
+# ── Your CLI toolset (installed per user by mise, always recent) ────
+# Name = tool, value = version ("latest" or pin e.g. "0.24.0").
+# Plain names come from mise's registry; "aqua:owner/repo" and "github:owner/repo"
+# pull release binaries for anything that isn't in it.
+# Add something: one line here, then `make hub`. Upgrade everything later: `mise up`.
+cli_tools:
+  # replacements for the classics
+  eza: latest            # ls  (ls/ll/lt aliases)
+  bat: latest            # cat with syntax highlighting, also the man pager
+  fd: latest             # find
+  ripgrep: latest        # grep  (rg)
+  dust: latest           # du
+  duf: latest            # df
+  sd: latest             # sed for find & replace
+  btop: latest           # top
+  doggo: latest          # dig
+  xh: latest             # curl for APIs / httpie
+  # navigation and search
+  fzf: latest            # Ctrl+T files, Ctrl+R history, Alt+C cd
+  zoxide: latest         # z <part of dir>
+  yazi: latest           # terminal file manager
+  # git and docker
+  delta: latest          # nicer git diffs (wired into git config)
+  lazygit: latest        # lg
+  lazydocker: latest     # lzd
+  "aqua:cli/cli": latest     # gh
+  # data and docs
+  yq: latest             # jq for YAML
+  glow: latest           # render markdown in the terminal
+  "aqua:tealdeer-rs/tealdeer": latest    # tldr: short examples for any command
+  # dev runtimes
+  neovim: latest
+  uv: latest             # Python projects and tools
+  node: lts
+  bun: latest            # needed by the opensessions tmux plugin
+  go: latest
+  just: latest
+  # per-project env vars: use [env] in a mise.toml (direnv's hook cost ~20 ms per prompt)
+  hyperfine: latest      # benchmark commands
+  # shell look
+  oh-my-posh: latest     # same prompt theme as Windows
+  fastfetch: latest
+
+# AI coding CLIs (they need logins, so they're switched off on Kave)
+ai_tools_enabled: true
+claude_code_enabled: true          # native installer, auto-updates
+ai_tools:
+  codex: latest
+  "npm:@google/gemini-cli": latest
+  opencode: latest
+
+# Set a GitHub token here (vault it) if mise ever hits GitHub's download rate limit.
+mise_github_token: ""
+
+# tmux plugins, cloned into ~/.tmux/plugins (same set as on Windows)
+tmux_plugins:
+  - { name: tpm, repo: "https://github.com/tmux-plugins/tpm" }
+  - { name: tmux-sensible, repo: "https://github.com/tmux-plugins/tmux-sensible" }
+  - { name: opensessions, repo: "https://github.com/Ataraxy-Labs/opensessions" }
+
+# ── Pentest toolkit (off by default; turn on per host) ───────────────
+pentest_enabled: false
+
+# Kave's public IP. Used by the `egress-check` shell command before you scan.
+egress_ip: ""
+
+pentest_packages:
+  - nmap
+  - masscan
+  - sqlmap
+  - hydra
+  - john
+  - whatweb
+  - proxychains4
+  - libpcap0.8         # naabu needs it at runtime
+
+# Release binaries via mise, kept in ~/.config/mise/conf.d/pentest.toml
+pentest_tools:
+  "aqua:projectdiscovery/subfinder": latest
+  "aqua:projectdiscovery/httpx": latest
+  "aqua:projectdiscovery/nuclei": latest
+  "aqua:projectdiscovery/katana": latest
+  "github:projectdiscovery/dnsx": latest
+  "aqua:projectdiscovery/naabu": latest
+  "aqua:ffuf/ffuf": latest
+  "github:OJ/gobuster": latest
+  "aqua:lc/gau": latest
+  "github:tomnomnom/waybackurls": latest
+  "github:tomnomnom/anew": latest
+
+# Python tools, each in its own venv via pipx
+pentest_pipx_tools:
+  - { name: impacket, spec: "impacket" }
+  - { name: netexec, spec: "git+https://github.com/Pennyw0rth/NetExec" }
+
+seclists_enabled: true             # ~2 GB, cloned to /opt/seclists

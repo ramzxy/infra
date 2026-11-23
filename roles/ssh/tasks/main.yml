@@ -1,0 +1,19 @@
+---
+# The drop-in is named 00-* because sshd uses the FIRST value it sees,
+# so it wins over provider files like 50-cloud-init.conf that re-enable passwords.
+- name: SSH hardening drop-in
+  ansible.builtin.template:
+    src: hardening.conf.j2
+    dest: /etc/ssh/sshd_config.d/00-hardening.conf
+    mode: "0644"
+  notify: Restart ssh
+
+- name: Privilege separation dir exists (needed for sshd -t)
+  ansible.builtin.file:
+    path: /run/sshd
+    state: directory
+    mode: "0755"
+
+- name: Validate full sshd config before restarting
+  ansible.builtin.command: /usr/sbin/sshd -t
+  changed_when: false
