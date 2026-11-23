@@ -92,6 +92,7 @@ cli_tools:
   fzf: latest            # Ctrl+T files, Ctrl+R history, Alt+C cd
   zoxide: latest         # z <part of dir>
   yazi: latest           # terminal file manager
+  zellij: latest         # easier tmux: keys shown at the bottom, floating panes, layouts
   # git and docker
   delta: latest          # nicer git diffs (wired into git config)
   lazygit: latest        # lg

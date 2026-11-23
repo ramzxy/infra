@@ -81,6 +81,7 @@ Full-run order (`site.yml`): base, users, firewall, tailscale, cli, shell; then 
 | `yazi` | file manager |
 | `tldr tar` | short examples for a command |
 | `mkcd dir`, `..`, `...` | same as on Windows |
+| `zellij`, `zellij a` | tmux alternative with its keys shown at the bottom; `a` reattaches. First launch asks for a key preset: pick **Unlock-First** so it doesn't steal Ctrl keys from nvim |
 | tmux `prefix o s` | opensessions sidebar |
 | tmux `prefix P` | save the whole pane to `~/tmux-<session>-<time>.log` |
 | tmux `prefix I` / `U` | install / update tmux plugins |
