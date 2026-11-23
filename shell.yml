@@ -1,0 +1,26 @@
+# Just the tools and the shell, for whoever runs it. No users, SSH, firewall, Tailscale or Docker.
+# Any Debian/Ubuntu box (VM, WSL, Kali, a rented GPU box).
+#   First time:  sudo bash bootstrap.sh      (installs Ansible too)
+#   After that:  make shell
+---
+- name: Tools and shell only
+  hosts: localhost
+  connection: local
+  become: true
+  vars:
+    admin_user: "{{ lookup('env', 'SUDO_USER') or lookup('env', 'USER') or 'root' }}"
+    ansible_python_interpreter: /usr/bin/python3
+  pre_tasks:
+    - name: Packages the shell and toolset need
+      ansible.builtin.apt:
+        name: "{{ shell_packages }}"
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Zsh as your login shell
+      ansible.builtin.user:
+        name: "{{ admin_user }}"
+        shell: /usr/bin/zsh
+  roles:
+    - cli     # mise + cli_tools and ai_tools from group_vars
+    - shell   # zsh, prompt, tmux, git config

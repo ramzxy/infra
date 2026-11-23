@@ -28,7 +28,10 @@ All machines join one Tailscale network. Public SSH gets closed once Tailscale w
 ## How to work in this repo
 
 - The control node must be Linux: the hub itself (`make here`), Kali, or WSL (repo on the Linux filesystem, not `/mnt/*`).
-- `make syntax`, then `make check HOST=hub`, then apply. On a fresh box: `sudo bash bootstrap.sh hub`.
+- Two entry points: `shell.yml` (tools + shell for whoever runs it, via `sudo bash bootstrap.sh` / `make shell`; must never touch users, SSH, firewall or Tailscale) and `site.yml` (full server, `sudo bash bootstrap.sh <host>` / `make here`). The `cli` and `shell` roles serve both, so use `admin_home`, never `/home/{{ admin_user }}` (shell-only runs can be root).
+- `make syntax`, dry run, then apply. On a fresh box: `sudo bash bootstrap.sh hub`.
+- README is a reference for Ilia, not an Ansible tutorial. Keep it short.
+- Repo: private GitHub `ramzxy/infra`. Commit and push only when asked.
 - Most edits belong in `group_vars/all.yml`. Per-host bits in `host_vars/`.
 - Keep `ansible-lint` clean and roles idempotent (second run reports no changes). Read-only probe tasks need `check_mode: false` so dry runs work.
 - Templates are Jinja: `{#` starts a Jinja comment, so avoid it in shell/zsh templates (`${#arr}` too; write `$#arr`).
@@ -39,7 +42,7 @@ All machines join one Tailscale network. Public SSH gets closed once Tailscale w
 
 ## Open TODOs
 
-1. Bootstrap the hub; then `ssh_public: false`, `ansible_host: hub`, rerun. Disable Tailscale key expiry for hub/kave.
+1. Hub is live (2026-11-23). Next: disable Tailscale key expiry for hub, then `ssh_public: false`, `ansible_host: hub`, rerun. Hub's `~/infra` should become a clone of the GitHub repo (read-only deploy key).
 2. Tailscale ACLs with tags before RunPod or other third-party boxes join.
 3. restic backup role (hub → HostBrr storage box, nightly, with a restore test).
 4. First compose stacks in `/srv/stacks` (e.g. the dashboard from the Kali VM, Uptime Kuma with Telegram alerts).

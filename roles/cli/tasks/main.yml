@@ -27,7 +27,7 @@
 
 - name: Mise config folders
   ansible.builtin.file:
-    path: "/home/{{ admin_user }}/{{ item }}"
+    path: "{{ admin_home }}/{{ item }}"
     state: directory
     owner: "{{ admin_user }}"
     group: "{{ admin_user }}"
@@ -40,7 +40,7 @@
 - name: Toolset (~/.config/mise/config.toml)
   ansible.builtin.template:
     src: mise-config.toml.j2
-    dest: "/home/{{ admin_user }}/.config/mise/config.toml"
+    dest: "{{ admin_home }}/.config/mise/config.toml"
     owner: "{{ admin_user }}"
     group: "{{ admin_user }}"
     mode: "0644"
@@ -48,9 +48,9 @@
 - name: Install missing tools (first run takes a few minutes)
   ansible.builtin.command: mise install --yes
   args:
-    chdir: "/home/{{ admin_user }}"
+    chdir: "{{ admin_home }}"
   environment:
-    HOME: "/home/{{ admin_user }}"
+    HOME: "{{ admin_home }}"
     MISE_YES: "1"
     GITHUB_TOKEN: "{{ mise_github_token }}"
   become: true
@@ -64,9 +64,9 @@
     curl -fsSL https://claude.ai/install.sh | bash
   args:
     executable: /bin/bash
-    creates: "/home/{{ admin_user }}/.local/bin/claude"
+    creates: "{{ admin_home }}/.local/bin/claude"
   environment:
-    HOME: "/home/{{ admin_user }}"
+    HOME: "{{ admin_home }}"
   become: true
   become_user: "{{ admin_user }}"
   when: claude_code_enabled | bool

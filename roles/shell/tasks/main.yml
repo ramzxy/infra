@@ -1,7 +1,7 @@
 ---
 - name: Config folders
   ansible.builtin.file:
-    path: "/home/{{ admin_user }}/{{ item }}"
+    path: "{{ admin_home }}/{{ item }}"
     state: directory
     owner: "{{ admin_user }}"
     group: "{{ admin_user }}"
@@ -17,7 +17,7 @@
 - name: Dotfiles for the admin user
   ansible.builtin.template:
     src: "{{ item.src }}"
-    dest: "/home/{{ admin_user }}/{{ item.dest }}"
+    dest: "{{ admin_home }}/{{ item.dest }}"
     owner: "{{ admin_user }}"
     group: "{{ admin_user }}"
     mode: "0644"
@@ -31,7 +31,7 @@
 - name: Prompt theme
   ansible.builtin.copy:
     src: theme.omp.json
-    dest: "/home/{{ admin_user }}/.config/oh-my-posh/theme.omp.json"
+    dest: "{{ admin_home }}/.config/oh-my-posh/theme.omp.json"
     owner: "{{ admin_user }}"
     group: "{{ admin_user }}"
     mode: "0644"
@@ -40,7 +40,7 @@
 - name: Tmux plugins
   ansible.builtin.git:
     repo: "{{ item.repo }}"
-    dest: "/home/{{ admin_user }}/.tmux/plugins/{{ item.name }}"
+    dest: "{{ admin_home }}/.tmux/plugins/{{ item.name }}"
     depth: 1
     update: false  # noqa: latest[git]
   become: true
@@ -51,7 +51,7 @@
 
 - name: Keep a place for personal, unmanaged shell tweaks
   ansible.builtin.file:
-    path: "/home/{{ admin_user }}/.zshrc.local"
+    path: "{{ admin_home }}/.zshrc.local"
     state: touch
     owner: "{{ admin_user }}"
     group: "{{ admin_user }}"

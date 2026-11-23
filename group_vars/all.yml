@@ -4,7 +4,8 @@
 # ─────────────────────────────────────────────────────────────────────
 
 # ── You ──────────────────────────────────────────────────────────────
-admin_user: ilia
+admin_user: ilia                   # shell.yml swaps in whoever runs it
+admin_home: "{{ '/root' if admin_user == 'root' else '/home/' + admin_user }}"
 admin_sudo_nopasswd: true          # fine while SSH is key-only + Tailscale-only
 
 # Public keys allowed to log in as admin_user. Exactly these, nothing else.
@@ -28,18 +29,27 @@ tailscale_authkey: "{{ lookup('env', 'TS_AUTHKEY') }}"
 tailscale_flags: ""                # per-host extras live in host_vars/
 tailscale_auto_update: true
 
-# ── Packages from apt (system basics, available to root too) ─────────
-base_packages:
-  - sudo               # minimal images sometimes lack it
+# ── Packages from apt ────────────────────────────────────────────────
+# What the shell and the mise toolset need. Installed everywhere, shell-only runs included.
+shell_packages:
   - ca-certificates
-  - acl                # lets Ansible run tasks as your user cleanly
-  - python3-apt        # lets `make check` dry runs use the apt module
-  - python3-debian     # needed by Ansible's deb822_repository module
-  - gnupg
   - curl
-  - wget
   - git
   - unzip
+  - xz-utils
+  - gnupg
+  - acl                # lets Ansible run tasks as your user cleanly
+  - python3-apt        # lets dry runs use the apt module
+  - python3-debian     # needed by Ansible's deb822_repository module
+  - zsh
+  - zsh-autosuggestions
+  - zsh-syntax-highlighting
+  - tmux
+
+# Server extras on top of shell_packages (full runs only).
+base_packages:
+  - sudo               # minimal images sometimes lack it
+  - wget
   - zip
   - rsync
   - jq
@@ -48,10 +58,6 @@ base_packages:
   - tree
   - lsof
   - vim
-  - tmux
-  - zsh
-  - zsh-autosuggestions
-  - zsh-syntax-highlighting
   - bash-completion
   - dnsutils
   - whois

@@ -57,7 +57,7 @@
 
 - name: Install base packages
   ansible.builtin.apt:
-    name: "{{ base_packages }}"
+    name: "{{ shell_packages + base_packages }}"
     state: present
 
 - name: Set timezone
