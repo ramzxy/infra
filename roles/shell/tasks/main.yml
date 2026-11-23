@@ -14,6 +14,30 @@
     - .tmux
     - .tmux/plugins
 
+# On a box that already had its own dotfiles, keep them as <file>.pre-infra before overwriting.
+# grep exits 0 = ours, 1 = someone else's, 2 = no file yet.
+- name: Look for dotfiles this repo didn't write
+  ansible.builtin.command: grep -q "Managed by Ansible" "{{ admin_home }}/{{ item }}"
+  loop: [.zshrc, .zshenv, .tmux.conf]
+  register: shell_dotfile_check
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Keep a copy of them
+  ansible.builtin.copy:
+    src: "{{ admin_home }}/{{ item.item }}"
+    dest: "{{ admin_home }}/{{ item.item }}.pre-infra"
+    remote_src: true
+    force: false
+    owner: "{{ admin_user }}"
+    group: "{{ admin_user }}"
+    mode: "0644"
+  loop: "{{ shell_dotfile_check.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: item.rc == 1
+
 - name: Dotfiles for the admin user
   ansible.builtin.template:
     src: "{{ item.src }}"

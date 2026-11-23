@@ -17,7 +17,7 @@ sudo bash bootstrap.sh
 exec zsh
 ```
 
-Works as a normal user (via sudo) or as root. On WSL, keep the repo on the Linux side, not under `/mnt/c`, or Ansible ignores `ansible.cfg`.
+Works as a normal user (via sudo) or as root. An existing `.zshrc`, `.zshenv` or `.tmux.conf` is kept as `<file>.pre-infra`. On WSL, keep the repo on the Linux side, not under `/mnt/c`, or Ansible ignores `ansible.cfg`.
 
 ## Full server
 
@@ -61,7 +61,7 @@ ansible-playbook site.yml --limit hub --connection local --check --diff   # dry 
 
 Files that say "Managed by Ansible" get overwritten on the next run.
 
-Full-run order (`site.yml`): base, users, firewall, tailscale, cli, shell; then docker + hub (+ pentest) on the hub, egress on Kave; ssh hardening last.
+Full-run order (`site.yml`): base, users, firewall, tailscale, shell, cli; then docker + hub (+ pentest) on the hub, egress on Kave; ssh hardening last.
 
 ## Shell cheatsheet
 

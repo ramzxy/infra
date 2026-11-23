@@ -10,8 +10,8 @@
     - users      # your user, sudo, SSH keys
     - firewall   # ufw: nothing in except Tailscale (+ SSH while ssh_public)
     - tailscale
+    - shell      # zsh, prompt, tmux, git config (before cli, so a failed download can't leave a bare zsh)
     - cli        # mise + the modern CLI toolset from group_vars
-    - shell      # zsh, prompt, tmux, git config
 
 - name: Hub
   hosts: hub

@@ -16,11 +16,13 @@
         name: "{{ shell_packages }}"
         update_cache: true
         cache_valid_time: 3600
-
+  # Config first, then the downloads: a failed tool download can't leave you with a bare zsh.
+  roles:
+    - shell   # zsh, prompt, tmux, git config
+    - cli     # mise + cli_tools and ai_tools from group_vars
+  post_tasks:
+    # Last, so zsh only becomes your shell once everything above worked.
     - name: Zsh as your login shell
       ansible.builtin.user:
         name: "{{ admin_user }}"
         shell: /usr/bin/zsh
-  roles:
-    - cli     # mise + cli_tools and ai_tools from group_vars
-    - shell   # zsh, prompt, tmux, git config
