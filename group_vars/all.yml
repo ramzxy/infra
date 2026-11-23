@@ -37,6 +37,7 @@ shell_packages:
   - git
   - unzip
   - xz-utils
+  - libatomic1         # node's prebuilt binary won't start without it
   - gnupg
   - acl                # lets Ansible run tasks as your user cleanly
   - python3-apt        # lets dry runs use the apt module
